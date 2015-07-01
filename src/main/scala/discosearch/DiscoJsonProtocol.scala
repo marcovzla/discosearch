@@ -2,6 +2,8 @@ package discosearch
 
 import spray.json._
 import edu.arizona.sista.discourse.rstparser._
+import DiscoParser.{ Action, Shift, Reduce }
+import DiscoState.Ok
 
 sealed trait Edu
 case class Terminal(text: String) extends Edu
@@ -24,6 +26,7 @@ object Edu {
 }
 
 object DiscoJsonProtocol extends DefaultJsonProtocol {
+
   implicit object eduFormat extends RootJsonFormat[Edu] {
     def read(json: JsValue) = ???
     def write(edu: Edu) = edu match {
@@ -36,4 +39,29 @@ object DiscoJsonProtocol extends DefaultJsonProtocol {
       )
     }
   }
+
+  implicit object actionFormat extends RootJsonFormat[Action] {
+    def read(json: JsValue) = {
+      val obj = json.asJsObject
+      val action = obj.fields("action").asInstanceOf[JsString].value
+      if (action == "shift") Shift
+      else if (action == "reduce") {
+        val label = obj.fields("label").asInstanceOf[JsString].value
+        val nucleus = obj.fields("nucleus").asInstanceOf[JsString].value
+        Reduce(label, nucleus)
+      } else sys.error("we need better error handling")
+    }
+
+    def write(action: Action) = action match {
+      case Shift => JsObject("action" -> JsString("shift"))
+      case Reduce(label, nucleus) => JsObject(
+        "action" -> JsString("reduce"),
+        "label" -> JsString(label),
+        "nucleus" -> JsString(nucleus)
+      )
+    }
+  }
+
+  implicit def okFormat = jsonFormat1(Ok)
+
 }

@@ -2,6 +2,8 @@ package discosearch
 
 import akka.actor.{ Actor, ActorLogging }
 import edu.arizona.sista.discourse.rstparser._
+import edu.arizona.sista.processors.Document
+import DiscoParser.Action
 
 class DiscoState extends Actor with ActorLogging {
 
@@ -14,20 +16,44 @@ class DiscoState extends Actor with ActorLogging {
   val (treedocs, corpusStats) = RSTParser.mkTrees(dataDir, processor)
   log.info("loaded trees")
 
-  var currentIndex = 0
+  // we need to call startNextParse() to get started
+  var currentIndex = -1
+  var tree: DiscourseTree = _
+  var doc: Document = _
+  val parser = new DiscoParser
 
-  def getEdu(): Edu = {
+  def receive = {
+    case GetDiscourseTree => sender ! getDiscourseTree()
+    case StartNextParse => sender ! startNextParse()
+    case GetValidActions => sender ! parser.validActions
+    case PerformAction(a) => sender ! performAction(a)
+  }
+
+  def getDiscourseTree(): Edu = {
     val (tree, doc) = treedocs(currentIndex)
     Edu.fromDiscourseTree(tree)
   }
 
-  def receive = {
-    case GetEdu(_) => sender ! Ok(getEdu())
+  def startNextParse() = {
+    currentIndex += 1
+    val (t, d) = treedocs(currentIndex)
+    tree = t
+    doc = d
+    parser.startParse(tree, doc)
+    Ok("started parse")
+  }
+
+  def performAction(a: Action) = {
+    parser.perform(a)
+    Ok(s"performed action $a")
   }
 
 }
 
 object DiscoState {
-  case class Ok(edu: Edu)
-  case class GetEdu(id: Int)
+  case class Ok(msg: String)
+  case object GetDiscourseTree
+  case object StartNextParse
+  case object GetValidActions
+  case class PerformAction(action: Action)
 }

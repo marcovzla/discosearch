@@ -11,6 +11,7 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import MediaTypes._
 import DiscoJsonProtocol._
+import DiscoParser.Action
 
 // we don't implement our route structure directly in the service actor because
 // we want to be able to test it independently, without having to spin up an actor
@@ -38,11 +39,30 @@ trait DiscoService extends HttpService {
   //Our worker Actor handles the work of the request.
   val worker = actorRefFactory.actorOf(Props[DiscoState], "worker")
 
-  val myRoute = path("") {
-    get {
+  val myRoute = get {
+    path("tree") {
       respondWithMediaType(`application/json`) {
         complete {
-          (worker ? GetEdu(0)).mapTo[Ok].map(_.edu).recover{ case _ => Terminal("error") }
+          (worker ? GetDiscourseTree).mapTo[Edu]
+        }
+      }
+    } ~
+    path("next_parse") {
+      complete {
+        (worker ? StartNextParse).mapTo[Ok]
+      }
+    } ~
+    path ("get_valid_actions") {
+      complete {
+        (worker ? GetValidActions).mapTo[List[Action]]
+      }
+    }
+  } ~
+  path("perform_action") {
+    post {
+      entity(as[Action]) { action =>
+        complete {
+          (worker ? PerformAction(action)).mapTo[Ok]
         }
       }
     }
