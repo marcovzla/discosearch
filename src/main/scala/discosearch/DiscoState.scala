@@ -13,7 +13,8 @@ class DiscoState extends Actor with ActorLogging {
   val dependencySyntax = true
 
   val processor = CacheReader.getProcessor(dependencySyntax)
-  val (treedocs, corpusStats) = RSTParser.mkTrees(dataDir, processor)
+  val (_treedocs, corpusStats) = RSTParser.mkTrees(dataDir, processor)
+  val treedocs = _treedocs.toVector
   log.info("loaded trees")
 
   // we need to call startNextParse() to get started
@@ -23,10 +24,12 @@ class DiscoState extends Actor with ActorLogging {
   val parser = new DiscoParser
 
   def receive = {
+    case GetDocIds => sender ! getDocIds()
     case GetDiscourseTree => sender ! getDiscourseTree()
-    case StartNextParse => sender ! startNextParse()
+    case StartParse(id) => sender ! startParse(id)
     case GetValidActions => sender ! parser.validActions
     case PerformAction(a) => sender ! performAction(a)
+    case IsDone => sender ! parser.isDone
   }
 
   def getDiscourseTree(): Edu = {
@@ -34,13 +37,13 @@ class DiscoState extends Actor with ActorLogging {
     Edu.fromDiscourseTree(tree)
   }
 
-  def startNextParse() = {
-    currentIndex += 1
+  def startParse(id: Int) = {
+    currentIndex = id
     val (t, d) = treedocs(currentIndex)
     tree = t
     doc = d
     parser.startParse(tree, doc)
-    Ok("started parse")
+    Ok(s"started parsing tree $id")
   }
 
   def performAction(a: Action) = {
@@ -48,12 +51,16 @@ class DiscoState extends Actor with ActorLogging {
     Ok(s"performed action $a")
   }
 
+  def getDocIds(): List[Int] = List.range(0, treedocs.size)
+
 }
 
 object DiscoState {
   case class Ok(msg: String)
   case object GetDiscourseTree
-  case object StartNextParse
+  case class StartParse(id: Int)
   case object GetValidActions
   case class PerformAction(action: Action)
+  case object GetDocIds
+  case object IsDone
 }

@@ -30,6 +30,8 @@ class DiscoParser {
     edu = edus(i)(j)
   } yield new DiscourseTree(i, edu._1, edu._2, doc, j)
 
+  def isDone: Map[String, Boolean] = Map("done" -> (buffer.isEmpty && stack.size == 1))
+
   // returns all valid actions given the current state
   def validActions: List[Action] = {
     val labels = List(

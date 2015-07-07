@@ -40,21 +40,33 @@ trait DiscoService extends HttpService {
   val worker = actorRefFactory.actorOf(Props[DiscoState], "worker")
 
   val myRoute = get {
-    path("tree") {
+    path("get_tree") {
       respondWithMediaType(`application/json`) {
         complete {
           (worker ? GetDiscourseTree).mapTo[Edu]
         }
       }
     } ~
-    path("next_parse") {
-      complete {
-        (worker ? StartNextParse).mapTo[Ok]
+    path("start_parse") {
+      parameter('id) { id =>
+        complete {
+          (worker ? StartParse(id.toInt)).mapTo[Ok]
+        }
       }
     } ~
-    path ("get_valid_actions") {
+    path("get_valid_actions") {
       complete {
         (worker ? GetValidActions).mapTo[List[Action]]
+      }
+    } ~
+    path("get_doc_ids") {
+      complete {
+        (worker ? GetDocIds).mapTo[List[Int]]
+      }
+    } ~
+    path("is_done") {
+      complete {
+        (worker ? IsDone).mapTo[Map[String, Boolean]]
       }
     }
   } ~
