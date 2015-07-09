@@ -84,6 +84,18 @@ class DiscoParser {
       stack = node :: rest
   }
 
+  def parsedTree: DiscourseTree = {
+    require(stack.size == 1)
+    stack.head
+  }
+
+  def loss: Double = {
+    val scorer = new DiscourseScorer
+    val score = new DiscourseScore
+    scorer.score(parsedTree, tree, score, ScoreType.Full)
+    1.0 - score.f1
+  }
+
 }
 
 object DiscoParser {

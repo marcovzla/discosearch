@@ -68,6 +68,11 @@ trait DiscoService extends HttpService {
       complete {
         (worker ? IsDone).mapTo[Map[String, Boolean]]
       }
+    } ~
+    path("get_loss") {
+      complete {
+        (worker ? GetLoss).mapTo[Map[String, Double]]
+      }
     }
   } ~
   path("perform_action") {

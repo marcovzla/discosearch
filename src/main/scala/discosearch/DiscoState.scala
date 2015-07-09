@@ -30,6 +30,7 @@ class DiscoState extends Actor with ActorLogging {
     case GetValidActions => sender ! parser.validActions
     case PerformAction(a) => sender ! performAction(a)
     case IsDone => sender ! parser.isDone
+    case GetLoss => sender ! Map("loss" -> parser.loss)
   }
 
   def getDiscourseTree(): Edu = {
@@ -63,4 +64,5 @@ object DiscoState {
   case class PerformAction(action: Action)
   case object GetDocIds
   case object IsDone
+  case object GetLoss
 }
