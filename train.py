@@ -160,7 +160,7 @@ class DiscourseParser(pyvw.SearchTask):
 if __name__ == '__main__':
     disco = DiscoSession()
     dataset = disco.get_doc_ids()
-    vw = pyvw.vw("--search 2 --quiet --search_task hook --ring_size 1024 -f disco.vw")
+    vw = pyvw.vw("--search 2 --quiet --search_task hook --ring_size 1024 --search_no_caching -f disco.vw")
     parser = vw.init_search_task(DiscourseParser)
 
     print 'training ...'
