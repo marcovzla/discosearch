@@ -54,9 +54,18 @@ trait DiscoService extends HttpService {
         }
       }
     } ~
+    path("stop_parse") {
+      parameter('uuid) { uuid =>
+        complete {
+          (worker ? StopParse(uuid)).mapTo[Ok]
+        }
+      }
+    } ~
     path("get_valid_actions") {
-      complete {
-        (worker ? GetValidActions).mapTo[List[Action]]
+      parameter('uuid) { uuid =>
+        complete {
+          (worker ? GetValidActions(uuid)).mapTo[List[Action]]
+        }
       }
     } ~
     path("get_doc_ids") {
@@ -65,21 +74,41 @@ trait DiscoService extends HttpService {
       }
     } ~
     path("is_done") {
-      complete {
-        (worker ? IsDone).mapTo[Map[String, Boolean]]
+      parameter('uuid) { uuid =>
+        complete {
+          (worker ? IsDone(uuid)).mapTo[Map[String, Boolean]]
+        }
       }
     } ~
     path("get_loss") {
-      complete {
-        (worker ? GetLoss).mapTo[Map[String, Double]]
+      parameter('uuid) { uuid =>
+        complete {
+          (worker ? GetLoss(uuid)).mapTo[Map[String, Double]]
+        }
+      }
+    } ~
+    path("get_features") {
+      parameter('uuid) { uuid =>
+        complete {
+          (worker ? GetFeatures(uuid)).mapTo[Map[String, Seq[(String, Double)]]]
+        }
+      }
+    } ~
+    path("get_gold_action") {
+      parameter('uuid) { uuid =>
+        complete {
+          (worker ? GetGoldAction(uuid)).mapTo[Action]
+        }
       }
     }
   } ~
   path("perform_action") {
     post {
-      entity(as[Action]) { action =>
-        complete {
-          (worker ? PerformAction(action)).mapTo[Ok]
+      parameter('uuid) { uuid =>
+        entity(as[Action]) { action =>
+          complete {
+            (worker ? PerformAction(uuid, action)).mapTo[Ok]
+          }
         }
       }
     }

@@ -4,25 +4,23 @@ import edu.arizona.sista.discourse.rstparser._
 import edu.arizona.sista.discourse.rstparser.Utils.mkGoldEDUs
 import edu.arizona.sista.processors.Document
 
-class DiscoParser {
+class DiscoParser(
+  val tree: DiscourseTree,
+  val doc: Document,
+  val corpusStats: CorpusStats
+) {
 
   import DiscoParser._
 
   // parser's internal state
-  private var buffer: List[DiscourseTree] = Nil
+  private var edus: Array[Array[(Int, Int)]] = mkGoldEDUs(tree, doc)
+  private var buffer: List[DiscourseTree] = mkBuffer()
   private var stack: List[DiscourseTree] = Nil
-  private var doc: Document = _
-  private var tree: DiscourseTree = _
-  private var edus: Array[Array[(Int, Int)]] = _
 
-  // starts a new parse
-  def startParse(t: DiscourseTree, d: Document): Unit = {
-    tree = t
-    doc = d
-    edus = mkGoldEDUs(tree, doc)
-    buffer = mkBuffer()
-    stack = Nil
-  }
+  private var costTracker: CostTracker = new CostTracker(tree, doc, leftToRight = true)
+
+  // feature extraction
+  val discoFeatures = new DiscoFeatures
 
   private def mkBuffer(): List[DiscourseTree] = for {
     i <- List.range(0, edus.size)
@@ -45,29 +43,49 @@ class DiscoParser {
       n <- Seq("left", "right", "both")
     } yield Reduce(l, n)
 
-    if (buffer.nonEmpty && stack.size >= 2) {
+    if (buffer.nonEmpty && stack.size > 1) {
       // all actions are valid
-      Shift :: allReduces
+      // Shift :: allReduces
+      List(Shift, Reduce("comparison", "left"))
     } else if (buffer.nonEmpty && stack.size < 2) {
       // not enough nodes in the stack
       // no reduce
       List(Shift)
-    } else if (buffer.isEmpty && stack.size >= 2) {
+    } else if (buffer.isEmpty && stack.size > 1) {
       // buffer is empty
       // no shift
-      allReduces
+      // allReduces
+      List(Reduce("comparison", "left"))
     } else {
-      // either we are done parsing or we haven't even started
+      // either we are done parsing or we haven't started yet
       Nil
     }
 
   }
 
   // returns feature vector for current state
-  def features: Map[String, Any] = ???
+  def features: Map[String, Seq[(String, Double)]] =
+    discoFeatures.mkFeatures(stack, buffer, doc, edus, corpusStats)
 
   // returns the optimal action for the current state
-  def goldAction: Action = ???
+  def goldAction: Action = {
+    val actions = validActions
+    if (actions.isEmpty) sys.error("no valid actions")
+    else if (actions.size == 1) actions.head
+    else {
+      val scoredActions = actions map {
+        case a @ Shift => (a, costTracker.nextCost(buffer.head))
+        case a: Reduce =>
+          val right = stack(0)
+          val left = stack(1)
+          val children = Array(left, right)
+          val direction = nucleusToDirection(a.nucleus)
+          val node = new DiscourseTree(a.label, direction, children)
+          (a, costTracker.nextCost(node))
+      }
+      scoredActions.minBy(_._2)._1
+    }
+  }
 
   // transition to the next state by performing action
   def perform(action: Action): Unit = action match {
@@ -75,6 +93,7 @@ class DiscoParser {
       // move next node in the buffer to the top of the stack
       stack = buffer.head :: stack
       buffer = buffer.tail
+      costTracker.addNode(stack.head)
     case Reduce(label, nucleus) =>
       // reduce two nodes on top of the stack
       val right :: left :: rest = stack
@@ -82,6 +101,7 @@ class DiscoParser {
       val direction = nucleusToDirection(nucleus)
       val node = new DiscourseTree(label, direction, children)
       stack = node :: rest
+      costTracker.addNode(stack.head)
   }
 
   def parsedTree: DiscourseTree = {
@@ -92,7 +112,7 @@ class DiscoParser {
   def loss: Double = {
     val scorer = new DiscourseScorer
     val score = new DiscourseScore
-    scorer.score(parsedTree, tree, score, ScoreType.Full)
+    scorer.score(parsedTree, tree, score, ScoreType.OnlyStructure)
     1.0 - score.f1
   }
 
