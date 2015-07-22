@@ -167,15 +167,5 @@ if __name__ == '__main__':
     for i in xrange(5):
         parser.learn(dataset)
 
-    print '#' * 72
-    print '#' * 72
-    print '#' * 72
-    print '#' * 72
-    print '#' * 72
-    print 'testing ...'
-    for d in dataset:
-        actions = parser.predict(d)
-        print actions
-
     vw.finish()
     print 'done!'
