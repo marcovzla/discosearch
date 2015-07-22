@@ -70,7 +70,7 @@ class DiscoSession:
             k = str(k)
             feats2[k] = []
             for pair in feats[k]:
-                feats2[k].append((str(pair[0]), pair[1]))
+                feats2[k].append((pair[0].encode('utf8'), pair[1]))
         return feats2
 
     def get_gold_action(self, uuid):
